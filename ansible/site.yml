@@ -1,0 +1,6 @@
+---
+- name: Configuration du serveur web NovaSphere
+  hosts: web
+  become: true
+  roles:
+    - web
