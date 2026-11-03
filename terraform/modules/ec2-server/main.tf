@@ -1,6 +1,6 @@
 resource "aws_security_group" "this" {
-  name        = "novasphere-${var.name}"
-  description = "Regles du serveur ${var.name}"
+  name        = "${var.name_prefix}-${var.name}"
+  description = var.security_group_description
 
   ingress {
     description = "SSH restreint"
@@ -37,7 +37,7 @@ resource "aws_instance" "this" {
   vpc_security_group_ids = [aws_security_group.this.id]
 
   tags = merge(var.tags, {
-    Name = "novasphere-${var.name}"
+    Name = "${var.name_prefix}-${var.name}"
     Role = var.name
   })
 }

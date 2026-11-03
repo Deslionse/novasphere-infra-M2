@@ -30,23 +30,26 @@ resource "aws_key_pair" "main" {
 }
 
 module "web" {
-  source        = "./modules/ec2-server"
-  name          = "web"
-  ami_id        = data.aws_ami.debian.id
-  instance_type = var.instance_type
-  key_name      = aws_key_pair.main.key_name
-  admin_cidr    = local.my_cidr
-  open_ports    = [80]
+  source                     = "./modules/ec2-server"
+  name                       = "web"
+  name_prefix                = local.name
+  ami_id                     = data.aws_ami.debian.id
+  instance_type              = var.instance_type
+  key_name                   = aws_key_pair.main.key_name
+  admin_cidr                 = local.my_cidr
+  open_ports                 = [80]
+  security_group_description = "SSH restreint a mon IP, HTTP ouvert"
 }
 
 module "monitoring" {
-  source        = "./modules/ec2-server"
-  name          = "monitoring"
-  ami_id        = data.aws_ami.debian.id
-  instance_type = var.instance_type
-  key_name      = aws_key_pair.main.key_name
-  admin_cidr    = local.my_cidr
-  open_ports    = []
+  source                     = "./modules/ec2-server"
+  name                       = "monitoring"
+  ami_id                     = data.aws_ami.debian.id
+  instance_type              = var.instance_type
+  key_name                   = aws_key_pair.main.key_name
+  admin_cidr                 = local.my_cidr
+  open_ports                 = []
+  security_group_description = "Regles du serveur monitoring"
 
   tags = {
     Role = "monitoring"

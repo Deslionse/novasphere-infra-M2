@@ -3,6 +3,18 @@ variable "name" {
   type        = string
 }
 
+variable "name_prefix" {
+  description = "Prefixe du nom des ressources"
+  type        = string
+  default     = "novasphere"
+}
+
+variable "security_group_description" {
+  description = "Description du Security Group"
+  type        = string
+  default     = "Regles du serveur"
+}
+
 variable "ami_id" {
   type = string
 }
