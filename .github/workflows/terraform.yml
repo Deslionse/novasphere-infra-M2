@@ -1,0 +1,120 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches:
+      - pre-production
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches:
+      - terraform/ansible
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_VAR_owner: enz
+  TF_VAR_aws_region: us-east-1
+
+jobs:
+  check:
+    name: Terraform checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.5
+
+      - name: Configure SSH public key
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.NOVASPHERE_SSH_PUBLIC_KEY }}
+        run: |
+          test -n "$SSH_PUBLIC_KEY"
+          printf '%s\n' "$SSH_PUBLIC_KEY" > "$RUNNER_TEMP/novasphere.pub"
+          echo "TF_VAR_ssh_public_key_path=$RUNNER_TEMP/novasphere.pub" >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: terraform init -input=false
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.sha }}
+          path: terraform/tfplan
+          retention-days: 7
+
+  apply:
+    name: Terraform apply
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/terraform/ansible'
+    needs: check
+    runs-on: ubuntu-latest
+    environment: pre-production
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.5
+
+      - name: Configure SSH public key
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.NOVASPHERE_SSH_PUBLIC_KEY }}
+        run: |
+          test -n "$SSH_PUBLIC_KEY"
+          printf '%s\n' "$SSH_PUBLIC_KEY" > "$RUNNER_TEMP/novasphere.pub"
+          echo "TF_VAR_ssh_public_key_path=$RUNNER_TEMP/novasphere.pub" >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: terraform init -input=false
+
+      - name: Terraform apply
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: terraform apply -input=false -auto-approve
