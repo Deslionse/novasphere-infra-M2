@@ -155,3 +155,81 @@ resource "aws_launch_template" "web" {
     }
   }
 }
+
+# === S04 ETAPE 3 : ALB, TARGET GROUP, LISTENER & ASG ===
+
+resource "aws_lb" "web" {
+  name               = "novasphere-${var.environment}"
+  internal           = false
+  load_balancer_type = "application"
+  subnets            = module.vpc.public_subnets
+  security_groups    = [aws_security_group.alb.id]
+
+  tags = {
+    Name = "novasphere-${var.environment}-alb"
+  }
+}
+
+resource "aws_lb_target_group" "web" {
+  name     = "novasphere-${var.environment}-web"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = module.vpc.vpc_id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 15
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Name = "novasphere-${var.environment}-tg"
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.web.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web.arn
+  }
+}
+
+resource "aws_autoscaling_group" "web" {
+  name                = "novasphere-${var.environment}-web"
+  min_size            = 2
+  max_size            = 4
+  desired_capacity    = 2
+  vpc_zone_identifier = module.vpc.public_subnets
+  target_group_arns   = [aws_lb_target_group.web.arn]
+  health_check_type   = "ELB"
+
+  launch_template {
+    id      = aws_launch_template.web.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "novasphere-${var.environment}-asg-web"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = var.environment
+    propagate_at_launch = true
+  }
+}
+
+output "alb_dns_name" {
+  description = "DNS public de l Application Load Balancer"
+  value       = aws_lb.web.dns_name
+}
