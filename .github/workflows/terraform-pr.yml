@@ -26,7 +26,7 @@ jobs:
       - name: Cle publique SSH (lue par aws_key_pair)
         env:
           SSH_PUBLIC_KEY: ${{ vars.SSH_PUBLIC_KEY }}
-        run: mkdir -p ~/.ssh && printf '%s\n' "$SSH_PUBLIC_KEY" > ~/.ssh/novasphere.pub
+        run: mkdir -p ~/.ssh && printf '%s\n' "$SSH_PUBLIC_KEY" | tee ~/.ssh/novasphere.pub ~/.ssh/id_ed25519.pub > /dev/null
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
