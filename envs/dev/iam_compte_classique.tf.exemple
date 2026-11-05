@@ -1,0 +1,38 @@
+# FICHIER THEORIQUE POUR COMPTE AWS STANDARD (HORS RESTRICTIONS LEARNER LAB)
+# Dans un compte reel, ce fichier serait nomme iam.tf
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "ec2_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "web" {
+  name               = "novasphere-${var.environment}-web"
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume.json
+}
+
+resource "aws_iam_role_policy" "read_secrets" {
+  name = "read-secrets"
+  role = aws_iam_role.web.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/novasphere/${var.environment}/*"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "web" {
+  name = "novasphere-${var.environment}-web"
+  role = aws_iam_role.web.name
+}

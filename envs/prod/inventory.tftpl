@@ -1,0 +1,8 @@
+[web]
+${web_ip} ansible_user=admin ansible_ssh_private_key_file=~/.ssh/novasphere
+
+[monitoring]
+${monitoring_ip} ansible_user=admin ansible_ssh_private_key_file=~/.ssh/novasphere
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3

@@ -29,17 +29,27 @@ resource "aws_key_pair" "main" {
   public_key = file(pathexpand(var.ssh_public_key_path))
 }
 
-resource "aws_security_group" "web" {
-  name        = "${local.name}-web"
-  description = "SSH restreint a mon IP, HTTP ouvert"
+module "web" {
+  source                     = "./modules/ec2-server"
+  name                       = "web"
+  name_prefix                = local.name
+  ami_id                     = data.aws_ami.debian.id
+  instance_type              = var.instance_type
+  key_name                   = aws_key_pair.main.key_name
+  admin_cidr                 = local.my_cidr
+  open_ports                 = [80]
+  security_group_description = "SSH restreint a mon IP, HTTP ouvert"
+}
 
-  ingress {
-    description = "SSH depuis mon poste uniquement"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [local.my_cidr]
-  }
+module "monitoring" {
+  source                     = "./modules/ec2-server"
+  name                       = "monitoring"
+  ami_id                     = data.aws_ami.debian.id
+  instance_type              = var.instance_type
+  key_name                   = aws_key_pair.main.key_name
+  admin_cidr                 = local.my_cidr
+  open_ports                 = []
+  security_group_description = "Regles du serveur monitoring"
 
   ingress {
     description = "HTTP public"
