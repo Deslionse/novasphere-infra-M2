@@ -1,6 +1,6 @@
 resource "aws_security_group" "this" {
-  name        = "novasphere-${var.name}"
-  description = "Regles du serveur ${var.name}"
+  name        = "${var.name_prefix}-${var.name}"
+  description = var.security_group_description
 
   ingress {
     description = "SSH restreint"
@@ -22,6 +22,18 @@ resource "aws_security_group" "this" {
     }
   }
 
+  dynamic "ingress" {
+    for_each = var.enable_monitoring_port ? [9100] : []
+
+    content {
+      description = "Node Exporter (monitoring restreint admin)"
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = [var.admin_cidr]
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -37,7 +49,7 @@ resource "aws_instance" "this" {
   vpc_security_group_ids = [aws_security_group.this.id]
 
   tags = merge(var.tags, {
-    Name = "novasphere-${var.name}"
+    Name = "${var.name_prefix}-${var.name}"
     Role = var.name
   })
 }

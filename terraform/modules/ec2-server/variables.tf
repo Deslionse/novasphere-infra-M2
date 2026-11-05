@@ -3,6 +3,18 @@ variable "name" {
   type        = string
 }
 
+variable "name_prefix" {
+  description = "Prefixe du nom des ressources"
+  type        = string
+  default     = "novasphere"
+}
+
+variable "security_group_description" {
+  description = "Description du Security Group"
+  type        = string
+  default     = "Regles du serveur"
+}
+
 variable "ami_id" {
   type = string
 }
@@ -30,6 +42,12 @@ variable "open_ports" {
   description = "Ports TCP ouverts a tout Internet"
   type        = list(number)
   default     = []
+}
+
+variable "enable_monitoring_port" {
+  description = "Ouvre le port 9100 (Node Exporter) uniquement pour le CIDR admin"
+  type        = bool
+  default     = false
 }
 
 variable "tags" {
