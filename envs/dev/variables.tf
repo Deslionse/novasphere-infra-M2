@@ -27,3 +27,9 @@ variable "ssh_public_key_path" {
   description = "Chemin vers la cle publique SSH"
   default     = "~/.ssh/id_ed25519.pub"
 }
+
+variable "instance_profile_name" {
+  description = "Profil d instance des serveurs web. Learner Lab : LabInstanceProfile precree"
+  type        = string
+  default     = "LabInstanceProfile"
+}

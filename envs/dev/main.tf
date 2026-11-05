@@ -146,6 +146,10 @@ resource "aws_launch_template" "web" {
   key_name      = aws_key_pair.main.key_name
 
   vpc_security_group_ids = [aws_security_group.web.id]
+
+  iam_instance_profile {
+    name = var.instance_profile_name
+  }
   user_data              = base64encode(file("${path.module}/bootstrap.sh"))
 
   tag_specifications {
@@ -203,6 +207,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_autoscaling_group" "web" {
+  depends_on = [aws_ssm_parameter.db_password]
   name                = "novasphere-${var.environment}-web"
   min_size            = 2
   max_size            = 4
