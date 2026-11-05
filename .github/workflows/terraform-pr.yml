@@ -37,7 +37,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.10.5"
+          terraform_version: "1.14.5"
 
       - run: terraform fmt -check -recursive
         working-directory: .
