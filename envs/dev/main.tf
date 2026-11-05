@@ -17,6 +17,21 @@ data "http" "my_ip" {
   url = "https://api.ipify.org"
 }
 
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "novasphere-${var.environment}"
+  cidr = "10.0.0.0/16"
+
+  azs            = ["us-east-1a", "us-east-1b"]
+  public_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+
+  enable_nat_gateway      = false
+  map_public_ip_on_launch = true
+}
+
 locals {
   my_cidr = "${chomp(data.http.my_ip.response_body)}/32"
   name    = "novasphere-${var.environment}-${var.owner}"
