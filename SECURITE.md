@@ -92,3 +92,13 @@ Un audit statique de sécurité a été réalisé avec **Checkov 3.4** sur le do
 - **`CKV2_AWS_28` (Activation AWS WAF sur ALB)** :
   - *Annotation* : `#checkov:skip=CKV2_AWS_28:WAF non active en lab pour maitrise des couts`
   - *Justification* : L'activation d'AWS WAF v2 entraîne une facturation fixe par WebACL ($5/mois + règles), proscrite pour éviter l'épuisement prématuré des crédits étudiants du Learner Lab.
+
+
+---
+
+## 6. Dérives traitées (Séance S06 - Étape 3)
+
+### Règle : Ouverture non autorisée du port 8080 sur le Security Group `novasphere-dev-web`
+- **Dérive constatée** : Ajout manuel hors-Terraform via l'AWS CLI / Console d'une règle d'entrée autorisant le trafic `TCP/8080` depuis `0.0.0.0/0` sur le Security Group `novasphere-dev-web` (`sg-0a9b0e1dac2516c0b`).
+- **Décision retenue** : **Le code a raison** (remédiation par réalignement automatique via `terraform apply`).
+- **Justification** : Cette ouverture non versionnée expose directement les serveurs d'application à Internet sans filtrage, contournant l'Application Load Balancer et détruisant le principe de défense en profondeur (*Defense in Depth*). Le code Terraform constitue la source unique de vérité (*Single Source of Truth*) : la règle sauvage est donc supprimée par Terraform pour rétablir la conformité de l'infrastructure.
