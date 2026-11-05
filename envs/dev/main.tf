@@ -152,6 +152,21 @@ resource "aws_launch_template" "web" {
   }
   user_data              = base64encode(file("${path.module}/bootstrap.sh"))
 
+  metadata_options {
+    http_tokens                 = "required"
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 1
+  }
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      encrypted   = true
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
+
   tag_specifications {
     resource_type = "instance"
     tags = {
@@ -163,6 +178,8 @@ resource "aws_launch_template" "web" {
 # === S04 ETAPE 3 : ALB, TARGET GROUP, LISTENER & ASG ===
 
 resource "aws_lb" "web" {
+  #checkov:skip=CKV2_AWS_20:Environnement de lab etudiant sans nom de domaine ni certificat ACM
+  #checkov:skip=CKV2_AWS_28:WAF non active en lab pour maitrise des couts
   name               = "novasphere-${var.environment}"
   internal           = false
   load_balancer_type = "application"
