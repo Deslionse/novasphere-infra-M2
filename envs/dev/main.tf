@@ -146,7 +146,26 @@ resource "aws_launch_template" "web" {
   key_name      = aws_key_pair.main.key_name
 
   vpc_security_group_ids = [aws_security_group.web.id]
+
+  iam_instance_profile {
+    name = var.instance_profile_name
+  }
   user_data              = base64encode(file("${path.module}/bootstrap.sh"))
+
+  metadata_options {
+    http_tokens                 = "required"
+    http_endpoint               = "enabled"
+    http_put_response_hop_limit = 1
+  }
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      encrypted   = true
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
 
   tag_specifications {
     resource_type = "instance"
@@ -159,6 +178,8 @@ resource "aws_launch_template" "web" {
 # === S04 ETAPE 3 : ALB, TARGET GROUP, LISTENER & ASG ===
 
 resource "aws_lb" "web" {
+  #checkov:skip=CKV2_AWS_20:Environnement de lab etudiant sans nom de domaine ni certificat ACM
+  #checkov:skip=CKV2_AWS_28:WAF non active en lab pour maitrise des couts
   name               = "novasphere-${var.environment}"
   internal           = false
   load_balancer_type = "application"
@@ -203,6 +224,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_autoscaling_group" "web" {
+  depends_on = [aws_ssm_parameter.db_password]
   name                = "novasphere-${var.environment}-web"
   min_size            = 2
   max_size            = 4
