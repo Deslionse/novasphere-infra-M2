@@ -27,3 +27,15 @@ variable "ssh_public_key_path" {
   description = "Chemin vers la cle publique SSH"
   default     = "~/.ssh/id_ed25519.pub"
 }
+
+variable "admin_cidr" {
+  description = "CIDR SSH administrateur ; vide = IP publique du poste qui execute Terraform"
+  type        = string
+  default     = ""
+}
+
+variable "generate_inventory" {
+  description = "Genere l'inventaire Ansible local (false en CI)"
+  type        = bool
+  default     = true
+}

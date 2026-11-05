@@ -1,0 +1,133 @@
+name: Terraform Apply
+on:
+  push:
+    branches: [main, pre-production]
+    paths: ["envs/**", "modules/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: tfstate-apply
+
+jobs:
+  apply-dev:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: envs/dev
+    env:
+      TF_VAR_owner: ${{ vars.OWNER }}
+      TF_VAR_environment: dev
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cle publique SSH
+        env:
+          SSH_PUBLIC_KEY: ${{ vars.SSH_PUBLIC_KEY }}
+        run: mkdir -p ~/.ssh && printf '%s\n' "$SSH_PUBLIC_KEY" > ~/.ssh/novasphere.pub
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - run: terraform init -input=false
+
+      - run: terraform plan -input=false -out=tfplan
+
+      - run: terraform apply -input=false tfplan
+
+  apply-prod:
+    if: github.event_name == 'push'
+    needs: apply-dev
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: envs/prod
+    env:
+      TF_VAR_owner: ${{ vars.OWNER }}
+      TF_VAR_environment: prod
+      TF_VAR_admin_cidr: ${{ vars.ADMIN_CIDR }}
+      TF_VAR_instance_type: t3.small
+      TF_VAR_generate_inventory: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cle publique SSH
+        env:
+          SSH_PUBLIC_KEY: ${{ vars.SSH_PUBLIC_KEY }}
+        run: mkdir -p ~/.ssh && printf '%s\n' "$SSH_PUBLIC_KEY" > ~/.ssh/novasphere.pub
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+
+      - run: terraform init -input=false
+
+      - run: terraform plan -input=false -out=tfplan
+
+      - run: terraform apply -input=false tfplan
+
+  drift:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [envs/dev, envs/prod]
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+    env:
+      TF_VAR_owner: ${{ vars.OWNER }}
+      TF_VAR_environment: ${{ matrix.dir == 'envs/dev' && 'dev' || 'prod' }}
+      TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+      TF_VAR_admin_cidr: ${{ vars.ADMIN_CIDR }}
+      TF_VAR_instance_type: t3.small
+      TF_VAR_generate_inventory: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cle publique SSH
+        env:
+          SSH_PUBLIC_KEY: ${{ vars.SSH_PUBLIC_KEY }}
+        run: mkdir -p ~/.ssh && printf '%s\n' "$SSH_PUBLIC_KEY" > ~/.ssh/novasphere.pub
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+          terraform_wrapper: false
+
+      - run: terraform init -input=false
+
+      - name: Check drift
+        shell: bash
+        run: |
+          terraform plan -detailed-exitcode -no-color

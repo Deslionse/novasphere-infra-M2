@@ -18,7 +18,7 @@ data "http" "my_ip" {
 }
 
 locals {
-  my_cidr = "${chomp(data.http.my_ip.response_body)}/32"
+  my_cidr = var.admin_cidr != "" ? var.admin_cidr : "${chomp(data.http.my_ip.response_body)}/32"
   name    = "novasphere-${var.environment}-${var.owner}"
 }
 
@@ -67,11 +67,17 @@ moved {
 }
 
 resource "local_file" "inventory" {
-  filename        = "${path.module}/../../ansible/inventory.ini"
+  count           = var.generate_inventory ? 1 : 0
+  filename        = "${path.module}/../../ansible/inventory-${var.environment}.ini"
   file_permission = "0644"
 
   content = templatefile("${path.module}/inventory.tftpl", {
     web_ip        = module.web.public_ip
     monitoring_ip = module.monitoring.public_ip
   })
+}
+
+moved {
+  from = local_file.inventory
+  to   = local_file.inventory[0]
 }
