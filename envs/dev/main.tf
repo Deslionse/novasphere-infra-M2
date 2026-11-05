@@ -87,7 +87,7 @@ resource "local_file" "inventory" {
 
 # === S04 : SECURITE & LAUNCH TEMPLATE ===
 
-resource "aws_security_group" "alb" {
+resource "aws_security_group" "lb" {
   name        = "novasphere-${var.environment}-alb"
   description = "Autorise le trafic HTTP public vers l ALB"
   vpc_id      = module.vpc.vpc_id
@@ -123,7 +123,7 @@ resource "aws_security_group" "web" {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    security_groups = [aws_security_group.lb.id]
   }
 
   egress {
@@ -184,7 +184,7 @@ resource "aws_lb" "web" {
   internal           = false
   load_balancer_type = "application"
   subnets            = module.vpc.public_subnets
-  security_groups    = [aws_security_group.alb.id]
+  security_groups    = [aws_security_group.lb.id]
 
   tags = {
     Name = "novasphere-${var.environment}-alb"
