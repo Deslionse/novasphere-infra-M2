@@ -71,15 +71,9 @@ module "monitoring" {
   }
 }
 
-moved {
-  from = aws_instance.web
-  to   = module.web.aws_instance.this
-}
 
-moved {
-  from = aws_security_group.web
-  to   = module.web.aws_security_group.this
-}
+
+
 
 resource "local_file" "inventory" {
   filename        = "${path.module}/../../ansible/inventory.ini"
@@ -89,4 +83,75 @@ resource "local_file" "inventory" {
     web_ip        = module.web.public_ip
     monitoring_ip = module.monitoring.public_ip
   })
+}
+
+# === S04 : SECURITE & LAUNCH TEMPLATE ===
+
+resource "aws_security_group" "alb" {
+  name        = "novasphere-${var.environment}-alb"
+  description = "Autorise le trafic HTTP public vers l ALB"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description = "HTTP public"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Tout trafic sortant autorise"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "novasphere-${var.environment}-alb"
+  }
+}
+
+resource "aws_security_group" "web" {
+  name        = "novasphere-${var.environment}-web"
+  description = "Autorise le port 80 depuis l ALB uniquement"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description     = "HTTP depuis l ALB uniquement"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    description = "Tout trafic sortant autorise"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "novasphere-${var.environment}-web"
+  }
+}
+
+resource "aws_launch_template" "web" {
+  name_prefix   = "novasphere-${var.environment}-"
+  image_id      = data.aws_ami.debian.id
+  instance_type = var.instance_type
+  key_name      = aws_key_pair.main.key_name
+
+  vpc_security_group_ids = [aws_security_group.web.id]
+  user_data              = base64encode(file("${path.module}/bootstrap.sh"))
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "novasphere-${var.environment}-web"
+    }
+  }
 }
