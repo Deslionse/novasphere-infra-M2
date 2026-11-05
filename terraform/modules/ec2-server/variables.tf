@@ -44,6 +44,12 @@ variable "open_ports" {
   default     = []
 }
 
+variable "enable_monitoring_port" {
+  description = "Ouvre le port 9100 (Node Exporter) uniquement pour le CIDR admin"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   type    = map(string)
   default = {}
