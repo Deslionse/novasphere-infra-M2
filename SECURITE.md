@@ -102,3 +102,17 @@ Un audit statique de sécurité a été réalisé avec **Checkov 3.4** sur le do
 - **Dérive constatée** : Ajout manuel hors-Terraform via l'AWS CLI / Console d'une règle d'entrée autorisant le trafic `TCP/8080` depuis `0.0.0.0/0` sur le Security Group `novasphere-dev-web` (`sg-0a9b0e1dac2516c0b`).
 - **Décision retenue** : **Le code a raison** (remédiation par réalignement automatique via `terraform apply`).
 - **Justification** : Cette ouverture non versionnée expose directement les serveurs d'application à Internet sans filtrage, contournant l'Application Load Balancer et détruisant le principe de défense en profondeur (*Defense in Depth*). Le code Terraform constitue la source unique de vérité (*Single Source of Truth*) : la règle sauvage est donc supprimée par Terraform pour rétablir la conformité de l'infrastructure.
+
+
+---
+
+## 7. Fédération OIDC vs Secrets de Lab & Journaux Publics (Séance S07)
+
+### A. Rôle de la condition `sub` en OIDC
+La condition `StringLike = { "token.actions.githubusercontent.com:sub" = "repo:Deslionse/novasphere-infra-M2:*" }` restreint l'échange de jeton Web Identity strictement aux pipelines exécutés depuis notre dépôt GitHub. Même si un tiers configure une action GitHub avec le même client ID AWS, la requête sera rejetée s'il ne provient pas de notre dépôt.
+
+### B. Comparatif OIDC vs Credentials de Lab
+En production standard avec OIDC, aucun secret ou identifiant statique n'est stocké dans GitHub : un jeton court (1h) est émis dynamiquement par AWS pour chaque exécution. Dans le cadre du Learner Lab (IAM bloqué par SCP), les identifiants temporaires de session (valables 4h) sont stockés dans les GitHub Actions Secrets et synchronisés à chaque lancement de session via `scripts/ci-secrets.sh`.
+
+### C. Analyse des journaux publics de CI
+Les logs publics de GitHub Actions affichent les ARN (contenant l'ID de compte AWS), le `ADMIN_CIDR` et les noms DNS de l'ALB : ces informations d'adressage et de topologie ne sont pas des secrets car elles ne confèrent aucun droit d'authentification ni d'élévation de privilège, l'accès restant scellé par les Security Groups et les mécanismes IAM.

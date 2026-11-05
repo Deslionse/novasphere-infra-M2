@@ -150,7 +150,7 @@ resource "aws_launch_template" "web" {
   iam_instance_profile {
     name = var.instance_profile_name
   }
-  user_data              = base64encode(file("${path.module}/bootstrap.sh"))
+  user_data = base64encode(file("${path.module}/bootstrap.sh"))
 
   metadata_options {
     http_tokens                 = "required"
@@ -185,6 +185,7 @@ resource "aws_lb" "web" {
   load_balancer_type = "application"
   subnets            = module.vpc.public_subnets
   security_groups    = [aws_security_group.lb.id]
+  idle_timeout       = 120
 
   tags = {
     Name = "novasphere-${var.environment}-alb"
@@ -224,7 +225,7 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_autoscaling_group" "web" {
-  depends_on = [aws_ssm_parameter.db_password]
+  depends_on          = [aws_ssm_parameter.db_password]
   name                = "novasphere-${var.environment}-web"
   min_size            = 2
   max_size            = 4

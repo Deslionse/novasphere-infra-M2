@@ -1,0 +1,41 @@
+# =============================================================================
+# FICHIER DOCUMENTAIRE (extension .exemple : Terraform ne le lit pas)
+#
+# Federation OIDC GitHub -> AWS, telle qu'on la deploie dans un compte classique :
+# aucune cle stockee dans GitHub, un jeton court emis a chaque execution.
+# Dans le Learner Lab, la creation du fournisseur OIDC et du role est refusee
+# (IAM verrouille). Les workflows utilisent donc les identifiants de session du
+# lab, stockes en secrets du depot, a renouveler a chaque session (4 h).
+#
+# Pour l'activer dans un compte classique : renommer en ci.tf, remplacer <vous>,
+# puis dans les workflows remettre "id-token: write" et role-to-assume.
+# =============================================================================
+resource "aws_iam_openid_connect_provider" "github" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+}
+
+resource "aws_iam_role" "ci" {
+  name = "novasphere-ci-${var.environment}"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
+        StringLike   = { "token.actions.githubusercontent.com:sub" = "repo:Deslionse/novasphere-infra-M2:*" }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ci_admin" {
+  role       = aws_iam_role.ci.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+output "ci_role_arn" {
+  value = aws_iam_role.ci.arn
+}
